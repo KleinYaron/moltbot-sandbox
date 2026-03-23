@@ -31,8 +31,14 @@ publicRoutes.get('/logo-small.png', (c) => {
 });
 
 // GET /api/status - Public health check for gateway status (no auth required)
+// CORS headers are included so external status pages and widgets can poll this endpoint.
 publicRoutes.get('/api/status', async (c) => {
   const sandbox = c.get('sandbox');
+
+  // Allow cross-origin requests so standalone status widgets can embed this endpoint
+  c.header('Access-Control-Allow-Origin', '*');
+  c.header('Access-Control-Allow-Methods', 'GET, OPTIONS');
+  c.header('Cache-Control', 'no-store');
 
   try {
     const process = await findExistingMoltbotProcess(sandbox);

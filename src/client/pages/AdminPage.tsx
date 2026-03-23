@@ -5,14 +5,18 @@ import {
   approveAllDevices,
   restartGateway,
   getStorageStatus,
+  getGatewayStatus,
   triggerSync,
   AuthError,
   type PendingDevice,
   type PairedDevice,
   type DeviceListResponse,
   type StorageStatusResponse,
+  type GatewayStatusResponse,
 } from '../api';
 import './AdminPage.css';
+
+const AUTO_REFRESH_SECONDS = 30;
 
 // Small inline spinner for buttons
 function ButtonSpinner() {
@@ -49,11 +53,14 @@ export default function AdminPage() {
   const [pending, setPending] = useState<PendingDevice[]>([]);
   const [paired, setPaired] = useState<PairedDevice[]>([]);
   const [storageStatus, setStorageStatus] = useState<StorageStatusResponse | null>(null);
+  const [gatewayStatus, setGatewayStatus] = useState<GatewayStatusResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [actionInProgress, setActionInProgress] = useState<string | null>(null);
   const [restartInProgress, setRestartInProgress] = useState(false);
   const [syncInProgress, setSyncInProgress] = useState(false);
+  const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
+  const [countdown, setCountdown] = useState(AUTO_REFRESH_SECONDS);
 
   const fetchDevices = useCallback(async () => {
     try {
@@ -75,6 +82,8 @@ export default function AdminPage() {
       }
     } finally {
       setLoading(false);
+      setLastUpdated(new Date());
+      setCountdown(AUTO_REFRESH_SECONDS);
     }
   }, []);
 
@@ -88,10 +97,36 @@ export default function AdminPage() {
     }
   }, []);
 
+  const fetchGatewayStatus = useCallback(async () => {
+    try {
+      const status = await getGatewayStatus();
+      setGatewayStatus(status);
+    } catch (err) {
+      console.error('Failed to fetch gateway status:', err);
+    }
+  }, []);
+
+  // Initial data load
   useEffect(() => {
     fetchDevices();
     fetchStorageStatus();
-  }, [fetchDevices, fetchStorageStatus]);
+    fetchGatewayStatus();
+  }, [fetchDevices, fetchStorageStatus, fetchGatewayStatus]);
+
+  // Auto-refresh countdown — ticks every second, triggers a refresh at zero
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setCountdown((prev) => {
+        if (prev <= 1) {
+          fetchDevices();
+          fetchGatewayStatus();
+          return AUTO_REFRESH_SECONDS;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+    return () => clearInterval(timer);
+  }, [fetchDevices, fetchGatewayStatus]);
 
   const handleApprove = async (requestId: string) => {
     setActionInProgress(requestId);
@@ -172,8 +207,32 @@ export default function AdminPage() {
     }
   };
 
+  const gatewayRunning = gatewayStatus?.gateway.running ?? null;
+
   return (
     <div className="devices-page">
+      {/* Live status bar */}
+      <div className="status-bar">
+        <div className="status-bar-left">
+          <span
+            className={`status-dot ${
+              gatewayRunning === null ? 'unknown' : gatewayRunning ? 'online' : 'offline'
+            }`}
+          />
+          <span className="status-label">
+            Gateway:{' '}
+            {gatewayRunning === null ? 'checking…' : gatewayRunning ? 'Running' : 'Stopped'}
+          </span>
+        </div>
+        <div className="status-bar-right">
+          {lastUpdated && (
+            <span className="auto-refresh-hint">
+              Updated {formatTimeAgo(lastUpdated.getTime())} · refreshes in {countdown}s
+            </span>
+          )}
+        </div>
+      </div>
+
       {error && (
         <div className="error-banner">
           <span>{error}</span>

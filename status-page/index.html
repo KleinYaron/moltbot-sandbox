@@ -1,0 +1,408 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Moltbot Status</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg: #0f1117;
+      --surface: #1a1d27;
+      --border: #2a2d3a;
+      --text: #e2e8f0;
+      --muted: #64748b;
+      --green: #4ade80;
+      --red: #f87171;
+      --yellow: #fbbf24;
+      --radius: 10px;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 2rem 1rem;
+    }
+
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 2rem;
+      width: 100%;
+      max-width: 480px;
+      display: flex;
+      flex-direction: column;
+      gap: 1.5rem;
+    }
+
+    /* Header */
+    .header {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+    }
+
+    .header img {
+      width: 36px;
+      height: 36px;
+      border-radius: 8px;
+    }
+
+    .header h1 {
+      font-size: 1.1rem;
+      font-weight: 600;
+    }
+
+    .header .instance-url {
+      font-size: 0.75rem;
+      color: var(--muted);
+      margin-top: 1px;
+    }
+
+    /* Big status indicator */
+    .status-hero {
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+      padding: 1.25rem;
+      background: var(--bg);
+      border-radius: var(--radius);
+      border: 1px solid var(--border);
+    }
+
+    .pulse-ring {
+      position: relative;
+      width: 20px;
+      height: 20px;
+      flex-shrink: 0;
+    }
+
+    .pulse-ring .dot {
+      width: 20px;
+      height: 20px;
+      border-radius: 50%;
+    }
+
+    .pulse-ring.online .dot { background: var(--green); }
+    .pulse-ring.offline .dot { background: var(--red); }
+    .pulse-ring.checking .dot { background: var(--muted); }
+    .pulse-ring.degraded .dot { background: var(--yellow); }
+
+    .pulse-ring.online::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      border-radius: 50%;
+      background: var(--green);
+      opacity: 0.4;
+      animation: pulse 2s ease-out infinite;
+    }
+
+    @keyframes pulse {
+      0%   { transform: scale(1); opacity: 0.4; }
+      100% { transform: scale(2.2); opacity: 0; }
+    }
+
+    .status-text h2 {
+      font-size: 1.1rem;
+      font-weight: 600;
+    }
+
+    .status-text p {
+      font-size: 0.8rem;
+      color: var(--muted);
+      margin-top: 2px;
+    }
+
+    /* Stats grid */
+    .stats {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 0.75rem;
+    }
+
+    .stat {
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 0.875rem 1rem;
+    }
+
+    .stat .label {
+      font-size: 0.7rem;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+
+    .stat .value {
+      font-size: 1rem;
+      font-weight: 600;
+      margin-top: 0.25rem;
+    }
+
+    /* URL input */
+    .url-form {
+      display: flex;
+      gap: 0.5rem;
+    }
+
+    .url-form input {
+      flex: 1;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 0.5rem 0.75rem;
+      color: var(--text);
+      font-size: 0.85rem;
+      outline: none;
+    }
+
+    .url-form input:focus {
+      border-color: #4f7cff;
+    }
+
+    .url-form button {
+      background: #4f7cff;
+      color: white;
+      border: none;
+      border-radius: 8px;
+      padding: 0.5rem 1rem;
+      font-size: 0.85rem;
+      font-weight: 500;
+      cursor: pointer;
+      white-space: nowrap;
+    }
+
+    .url-form button:hover { filter: brightness(1.1); }
+
+    /* Footer */
+    .footer {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 0.75rem;
+      color: var(--muted);
+      padding-top: 0.5rem;
+      border-top: 1px solid var(--border);
+    }
+
+    .footer a {
+      color: inherit;
+      text-decoration: underline;
+      text-underline-offset: 2px;
+    }
+
+    /* Embed snippet */
+    .embed-toggle {
+      background: none;
+      border: none;
+      color: var(--muted);
+      font-size: 0.75rem;
+      cursor: pointer;
+      padding: 0;
+      text-decoration: underline;
+      text-underline-offset: 2px;
+    }
+
+    .embed-code {
+      display: none;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 0.75rem;
+      font-family: monospace;
+      font-size: 0.75rem;
+      color: var(--muted);
+      word-break: break-all;
+      cursor: text;
+      user-select: all;
+    }
+
+    .embed-code.visible { display: block; }
+  </style>
+</head>
+<body>
+
+<div class="card">
+  <div class="header">
+    <div>
+      <h1>Moltbot Status</h1>
+      <div class="instance-url" id="display-url">—</div>
+    </div>
+  </div>
+
+  <div class="status-hero">
+    <div class="pulse-ring checking" id="pulse">
+      <div class="dot"></div>
+    </div>
+    <div class="status-text">
+      <h2 id="status-label">Checking…</h2>
+      <p id="status-sub">Connecting to gateway</p>
+    </div>
+  </div>
+
+  <div class="stats">
+    <div class="stat">
+      <div class="label">Response Time</div>
+      <div class="value" id="stat-latency">—</div>
+    </div>
+    <div class="stat">
+      <div class="label">Last Checked</div>
+      <div class="value" id="stat-checked">—</div>
+    </div>
+    <div class="stat">
+      <div class="label">Checks Run</div>
+      <div class="value" id="stat-count">0</div>
+    </div>
+    <div class="stat">
+      <div class="label">Uptime (session)</div>
+      <div class="value" id="stat-uptime">—</div>
+    </div>
+  </div>
+
+  <div class="url-form">
+    <input type="url" id="url-input" placeholder="https://your-worker.workers.dev" />
+    <button onclick="applyUrl()">Connect</button>
+  </div>
+
+  <div class="footer">
+    <span>Auto-refreshes every 30s · <span id="next-check">30</span>s</span>
+    <button class="embed-toggle" onclick="toggleEmbed()">Embed this widget</button>
+  </div>
+
+  <pre class="embed-code" id="embed-code"></pre>
+</div>
+
+<script>
+  const REFRESH_MS = 30_000;
+
+  let baseUrl = '';
+  let checkCount = 0;
+  let upCount = 0;
+  let countdownVal = 30;
+  let countdownTimer = null;
+  let checkTimer = null;
+
+  // ── Bootstrap ──────────────────────────────────────────────────────────────
+  (function init() {
+    const params = new URLSearchParams(location.search);
+    const urlParam = params.get('url') || localStorage.getItem('moltbot-url') || '';
+    if (urlParam) {
+      document.getElementById('url-input').value = urlParam;
+      applyUrl(urlParam);
+    }
+  })();
+
+  function applyUrl(url) {
+    url = (url || document.getElementById('url-input').value).trim().replace(/\/$/, '');
+    if (!url) return;
+    baseUrl = url;
+    localStorage.setItem('moltbot-url', url);
+    document.getElementById('display-url').textContent = url;
+    document.getElementById('embed-code').textContent =
+      `<iframe src="${location.origin}${location.pathname}?url=${encodeURIComponent(url)}" `+
+      `width="520" height="480" style="border:none;border-radius:12px"></iframe>`;
+    resetCounters();
+    runCheck();
+    startTimers();
+  }
+
+  // ── Check ──────────────────────────────────────────────────────────────────
+  async function runCheck() {
+    if (!baseUrl) return;
+    const t0 = Date.now();
+    try {
+      const res = await fetch(`${baseUrl}/api/status`, { cache: 'no-store' });
+      const latency = Date.now() - t0;
+      const data = await res.json();
+      checkCount++;
+      if (data.ok) upCount++;
+      updateUI(data, latency);
+    } catch (e) {
+      checkCount++;
+      updateUI({ ok: false, status: 'unreachable' }, null);
+    }
+  }
+
+  function updateUI(data, latencyMs) {
+    const pulse = document.getElementById('pulse');
+    const label = document.getElementById('status-label');
+    const sub   = document.getElementById('status-sub');
+
+    pulse.className = 'pulse-ring';
+
+    if (data.ok && data.status === 'running') {
+      pulse.classList.add('online');
+      label.textContent = 'Operational';
+      sub.textContent   = 'Gateway is running';
+    } else if (data.status === 'not_running') {
+      pulse.classList.add('offline');
+      label.textContent = 'Gateway Stopped';
+      sub.textContent   = 'No gateway process found';
+    } else if (data.status === 'not_responding') {
+      pulse.classList.add('degraded');
+      label.textContent = 'Degraded';
+      sub.textContent   = 'Process running but not responding';
+    } else if (data.status === 'unreachable') {
+      pulse.classList.add('offline');
+      label.textContent = 'Unreachable';
+      sub.textContent   = 'Could not connect to worker';
+    } else {
+      pulse.classList.add('checking');
+      label.textContent = 'Unknown';
+      sub.textContent   = data.status || 'Unexpected response';
+    }
+
+    document.getElementById('stat-latency').textContent =
+      latencyMs !== null ? `${latencyMs} ms` : '—';
+    document.getElementById('stat-checked').textContent =
+      new Date().toLocaleTimeString();
+    document.getElementById('stat-count').textContent = checkCount;
+    document.getElementById('stat-uptime').textContent =
+      checkCount > 0 ? `${Math.round((upCount / checkCount) * 100)}%` : '—';
+  }
+
+  // ── Timers ─────────────────────────────────────────────────────────────────
+  function startTimers() {
+    clearInterval(countdownTimer);
+    clearInterval(checkTimer);
+
+    countdownVal = REFRESH_MS / 1000;
+    countdownTimer = setInterval(() => {
+      countdownVal--;
+      document.getElementById('next-check').textContent = countdownVal;
+      if (countdownVal <= 0) countdownVal = REFRESH_MS / 1000;
+    }, 1000);
+
+    checkTimer = setInterval(() => {
+      runCheck();
+      countdownVal = REFRESH_MS / 1000;
+    }, REFRESH_MS);
+  }
+
+  function resetCounters() {
+    checkCount = 0;
+    upCount = 0;
+    document.getElementById('stat-count').textContent = '0';
+    document.getElementById('stat-uptime').textContent = '—';
+    document.getElementById('stat-latency').textContent = '—';
+    document.getElementById('stat-checked').textContent = '—';
+  }
+
+  // ── Embed toggle ───────────────────────────────────────────────────────────
+  function toggleEmbed() {
+    document.getElementById('embed-code').classList.toggle('visible');
+  }
+</script>
+
+</body>
+</html>

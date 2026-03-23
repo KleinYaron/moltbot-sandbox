@@ -137,3 +137,13 @@ export async function triggerSync(): Promise<SyncResponse> {
     method: 'POST',
   });
 }
+
+export interface GatewayStatusResponse {
+  gateway: { running: boolean; processId: number | null };
+  storage: { configured: boolean };
+  timestamp: string;
+}
+
+export async function getGatewayStatus(): Promise<GatewayStatusResponse> {
+  return apiRequest<GatewayStatusResponse>('/status');
+}

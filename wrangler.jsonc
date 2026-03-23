@@ -7,6 +7,10 @@
   "observability": {
     "enabled": true,
   },
+  // Disable containers in local dev (requires Docker, not needed for UI development)
+  "dev": {
+    "enable_containers": false,
+  },
   // Static assets for admin UI (built by vite)
   "assets": {
     "directory": "./dist/client",

@@ -257,6 +257,33 @@ adminApi.post('/storage/sync', async (c) => {
   }
 });
 
+// GET /api/admin/status - Lightweight status summary (gateway + storage, no CLI calls)
+adminApi.get('/status', async (c) => {
+  const sandbox = c.get('sandbox');
+
+  let gatewayRunning = false;
+  let processId: number | null = null;
+  try {
+    const proc = await findExistingMoltbotProcess(sandbox);
+    gatewayRunning = proc !== null;
+    processId = proc?.id ?? null;
+  } catch {
+    // Sandbox may not be initialised yet — gateway is not running
+  }
+
+  const storageConfigured = !!(
+    c.env.R2_ACCESS_KEY_ID &&
+    c.env.R2_SECRET_ACCESS_KEY &&
+    c.env.CF_ACCOUNT_ID
+  );
+
+  return c.json({
+    gateway: { running: gatewayRunning, processId },
+    storage: { configured: storageConfigured },
+    timestamp: new Date().toISOString(),
+  });
+});
+
 // POST /api/admin/gateway/restart - Kill the current gateway and start a new one
 adminApi.post('/gateway/restart', async (c) => {
   const sandbox = c.get('sandbox');
